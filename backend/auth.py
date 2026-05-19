@@ -1,4 +1,7 @@
 import os
+import json
+import urllib.parse
+
 os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 
 from dotenv import load_dotenv
@@ -33,6 +36,7 @@ flow = Flow.from_client_config(
     redirect_uri=REDIRECT_URI,
 )
 
+
 @router.get("/login")
 def login():
 
@@ -53,7 +57,11 @@ def callback(request: Request):
 
     credentials = flow.credentials
 
-    service = build("gmail", "v1", credentials=credentials)
+    service = build(
+        "gmail",
+        "v1",
+        credentials=credentials
+    )
 
     results = service.users().messages().list(
         userId="me",
@@ -84,7 +92,9 @@ def callback(request: Request):
             if header["name"] == "From":
                 sender = header["value"]
 
-        # Categorization Logic
+        snippet = msg.get("snippet", "")
+
+        # Email Categorization
         category = "General"
 
         if "indeed" in sender.lower():
@@ -93,19 +103,28 @@ def callback(request: Request):
         elif "naukri" in sender.lower():
             category = "Job Alerts"
 
+        elif "linkedin" in sender.lower():
+            category = "Professional"
+
         elif "sale" in subject.lower():
             category = "Promotions"
 
-        elif "unsubscribe" in msg.get("snippet", "").lower():
+        elif "unsubscribe" in snippet.lower():
             category = "Newsletter"
 
         email_data.append({
             "subject": subject,
             "from": sender,
-            "snippet": msg.get("snippet"),
+            "snippet": snippet,
             "category": category
         })
 
-    return {
-        "emails": email_data
-    }
+    encoded_data = urllib.parse.quote(
+        json.dumps(email_data)
+    )
+
+    frontend_url = (
+        f"http://localhost:5173/?emails={encoded_data}"
+    )
+
+    return RedirectResponse(frontend_url)
