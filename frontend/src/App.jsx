@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import toast, { Toaster } from "react-hot-toast";
 import "./App.css";
 
 function App() {
@@ -9,6 +10,9 @@ function App() {
 
   const [searchTerm, setSearchTerm] =
     useState("");
+
+  const [loading, setLoading] =
+    useState(false);
 
   useEffect(() => {
 
@@ -38,6 +42,8 @@ function App() {
 
   const deleteEmail = async (id) => {
 
+    setLoading(true);
+
     await fetch(
       `http://127.0.0.1:8000/auth/delete/${id}`,
       {
@@ -50,10 +56,16 @@ function App() {
         (email) => email.id !== id
       )
     );
+
+    toast.success("Email moved to trash");
+
+    setLoading(false);
   };
 
 
   const archiveEmail = async (id) => {
+
+    setLoading(true);
 
     await fetch(
       `http://127.0.0.1:8000/auth/archive/${id}`,
@@ -67,6 +79,70 @@ function App() {
         (email) => email.id !== id
       )
     );
+
+    toast.success("Email archived");
+
+    setLoading(false);
+  };
+
+
+  const deletePromotions = async () => {
+
+    setLoading(true);
+
+    const promotionsEmails = emails.filter(
+      (email) => email.category === "Promotions"
+    );
+
+    for (const email of promotionsEmails) {
+
+      await fetch(
+        `http://127.0.0.1:8000/auth/delete/${email.id}`,
+        {
+          method: "DELETE"
+        }
+      );
+    }
+
+    setEmails(
+      emails.filter(
+        (email) => email.category !== "Promotions"
+      )
+    );
+
+    toast.success("Promotions cleaned");
+
+    setLoading(false);
+  };
+
+
+  const archiveNewsletters = async () => {
+
+    setLoading(true);
+
+    const newsletterEmails = emails.filter(
+      (email) => email.category === "Newsletter"
+    );
+
+    for (const email of newsletterEmails) {
+
+      await fetch(
+        `http://127.0.0.1:8000/auth/archive/${email.id}`,
+        {
+          method: "POST"
+        }
+      );
+    }
+
+    setEmails(
+      emails.filter(
+        (email) => email.category !== "Newsletter"
+      )
+    );
+
+    toast.success("Newsletters archived");
+
+    setLoading(false);
   };
 
 
@@ -95,6 +171,7 @@ function App() {
     }
   );
 
+
   const jobAlerts =
     emails.filter(
       (e) => e.category === "Job Alerts"
@@ -113,143 +190,196 @@ function App() {
 
   return (
 
-    <div className="app">
+    <>
 
-      <div className="sidebar">
+      <Toaster />
 
-        <h2>Inbox Cleaner</h2>
+      <div className="app">
 
-        <button onClick={handleLogin}>
-          Connect Gmail
-        </button>
+        <div className="sidebar">
 
-        <ul>
+          <h2>Inbox Cleaner</h2>
 
-          <li onClick={() =>
-            setSelectedCategory("All")
-          }>
-            All Emails
-          </li>
+          <button onClick={handleLogin}>
+            Connect Gmail
+          </button>
 
-          <li onClick={() =>
-            setSelectedCategory("Job Alerts")
-          }>
-            Job Alerts
-          </li>
+          <ul>
 
-          <li onClick={() =>
-            setSelectedCategory("Promotions")
-          }>
-            Promotions
-          </li>
+            <li onClick={() =>
+              setSelectedCategory("All")
+            }>
+              All Emails
+            </li>
 
-          <li onClick={() =>
-            setSelectedCategory("Newsletter")
-          }>
-            Newsletter
-          </li>
+            <li onClick={() =>
+              setSelectedCategory("Job Alerts")
+            }>
+              Job Alerts
+            </li>
 
-          <li onClick={() =>
-            setSelectedCategory("Professional")
-          }>
-            Professional
-          </li>
+            <li onClick={() =>
+              setSelectedCategory("Promotions")
+            }>
+              Promotions
+            </li>
 
-        </ul>
+            <li onClick={() =>
+              setSelectedCategory("Newsletter")
+            }>
+              Newsletter
+            </li>
 
-      </div>
+            <li onClick={() =>
+              setSelectedCategory("Professional")
+            }>
+              Professional
+            </li>
 
-      <div className="main-content">
-
-        <div className="topbar">
-
-          <input
-            type="text"
-            placeholder="Search emails..."
-            value={searchTerm}
-            onChange={(e) =>
-              setSearchTerm(e.target.value)
-            }
-          />
+          </ul>
 
         </div>
 
-        <div className="stats-grid">
 
-          <div className="stat-card">
-            <h3>Total Emails</h3>
-            <p>{emails.length}</p>
+        <div className="main-content">
+
+          <div className="topbar">
+
+            <input
+              type="text"
+              placeholder="Search emails..."
+              value={searchTerm}
+              onChange={(e) =>
+                setSearchTerm(e.target.value)
+              }
+            />
+
           </div>
 
-          <div className="stat-card">
-            <h3>Job Alerts</h3>
-            <p>{jobAlerts}</p>
-          </div>
 
-          <div className="stat-card">
-            <h3>Promotions</h3>
-            <p>{promotions}</p>
-          </div>
+          {loading && (
+            <div className="loading">
+              Cleaning inbox...
+            </div>
+          )}
 
-          <div className="stat-card">
-            <h3>Newsletters</h3>
-            <p>{newsletters}</p>
-          </div>
 
-        </div>
+          <div className="bulk-actions">
 
-        <div className="email-container">
-
-          {filteredEmails.map((email, index) => (
-
-            <div
-              className="email-card"
-              key={index}
+            <button
+              className="bulk-delete"
+              onClick={deletePromotions}
             >
+              Delete Promotions
+            </button>
 
-              <h3>{email.subject}</h3>
+            <button
+              className="bulk-archive"
+              onClick={archiveNewsletters}
+            >
+              Archive Newsletters
+            </button>
 
-              <p>
-                <strong>From:</strong>
-                {" "}
-                {email.from}
-              </p>
+          </div>
 
-              <p>{email.snippet}</p>
 
-              <span
-                className={`category ${email.category.replace(/\s/g, "")}`}
-              >
-                {email.category}
-              </span>
+          <div className="stats-grid">
 
-              <div className="actions">
+            <div className="stat-card">
+              <h3>Total Emails</h3>
+              <p>{emails.length}</p>
+            </div>
 
-                <button
-                  className="archive-btn"
-                  onClick={() => archiveEmail(email.id)}
-                >
-                  Archive
-                </button>
+            <div className="stat-card">
+              <h3>Job Alerts</h3>
+              <p>{jobAlerts}</p>
+            </div>
 
-                <button
-                  className="delete-btn"
-                  onClick={() => deleteEmail(email.id)}
-                >
-                  Delete
-                </button>
+            <div className="stat-card">
+              <h3>Promotions</h3>
+              <p>{promotions}</p>
+            </div>
+
+            <div className="stat-card">
+              <h3>Newsletters</h3>
+              <p>{newsletters}</p>
+            </div>
+
+          </div>
+
+
+          <div className="email-container">
+
+            {filteredEmails.length === 0 ? (
+
+              <div className="empty-state">
+
+                <h2>✨ Your inbox is clean!</h2>
+
+                <p>
+                  No emails found in this category.
+                </p>
 
               </div>
 
-            </div>
+            ) : (
 
-          ))}
+              filteredEmails.map((email, index) => (
+
+                <div
+                  className="email-card"
+                  key={index}
+                >
+
+                  <h3>{email.subject}</h3>
+
+                  <p>
+                    <strong>From:</strong>
+                    {" "}
+                    {email.from}
+                  </p>
+
+                  <p>{email.snippet}</p>
+
+                  <span
+                    className={`category ${email.category.replace(/\s/g, "")}`}
+                  >
+                    {email.category}
+                  </span>
+
+
+                  <div className="actions">
+
+                    <button
+                      className="archive-btn"
+                      onClick={() => archiveEmail(email.id)}
+                    >
+                      Archive
+                    </button>
+
+                    <button
+                      className="delete-btn"
+                      onClick={() => deleteEmail(email.id)}
+                    >
+                      Delete
+                    </button>
+
+                  </div>
+
+                </div>
+
+              ))
+
+            )}
+
+          </div>
 
         </div>
 
       </div>
 
-    </div>
+    </>
+
   );
 }
 
