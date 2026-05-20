@@ -15,12 +15,14 @@ load_dotenv()
 
 router = APIRouter()
 
+credentials_global = None
+
 CLIENT_ID = os.getenv("CLIENT_ID")
 CLIENT_SECRET = os.getenv("CLIENT_SECRET")
 REDIRECT_URI = os.getenv("REDIRECT_URI")
 
 SCOPES = [
-    "https://www.googleapis.com/auth/gmail.readonly"
+    "https://www.googleapis.com/auth/gmail.modify"
 ]
 
 flow = Flow.from_client_config(
@@ -61,7 +63,11 @@ def callback(request: Request):
         "gmail",
         "v1",
         credentials=credentials
+
     )
+
+    global credentials_global
+    credentials_global = credentials
 
     results = service.users().messages().list(
         userId="me",
@@ -113,6 +119,7 @@ def callback(request: Request):
             category = "Newsletter"
 
         email_data.append({
+            "id": message["id"],
             "subject": subject,
             "from": sender,
             "snippet": snippet,
@@ -128,3 +135,42 @@ def callback(request: Request):
     )
 
     return RedirectResponse(frontend_url)
+
+@router.delete("/delete/{message_id}")
+def delete_email(message_id: str):
+
+    service = build(
+        "gmail",
+        "v1",
+        credentials=credentials_global
+    )
+
+    service.users().messages().trash(
+        userId="me",
+        id=message_id
+    ).execute()
+
+    return {
+        "message": "Email moved to trash"
+    }
+
+@router.post("/archive/{message_id}")
+def archive_email(message_id: str):
+
+    service = build(
+        "gmail",
+        "v1",
+        credentials=credentials_global
+    )
+
+    service.users().messages().modify(
+        userId="me",
+        id=message_id,
+        body={
+            "removeLabelIds": ["INBOX"]
+        }
+    ).execute()
+
+    return {
+        "message": "Email archived"
+    }
